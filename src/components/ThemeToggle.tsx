@@ -18,6 +18,9 @@ function getServerSnapshot(): ThemeMode {
 }
 
 function subscribe(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
   const handler = () => onStoreChange();
   window.addEventListener("themechange", handler);
   return () => window.removeEventListener("themechange", handler);

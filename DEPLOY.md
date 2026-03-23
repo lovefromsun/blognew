@@ -101,6 +101,40 @@ cd blog
 # 后续同上：创建 .env.production、npm install、npm run build、pm2 start
 ```
 
+### 生产密钥外置（推荐，避免每次部署重置密码）
+
+把敏感配置放在 **项目目录外** `/var/data/blog.env`，`git pull` **不会**覆盖它；PM2 会优先读取该文件（见根目录 `ecosystem.config.cjs`）。
+
+**一次性操作（在服务器 `/var/www/blog`）：**
+
+```bash
+# 若当前只有项目内的 .env.production，可一键迁移并改为软链
+bash deploy/migrate-secrets-to-var-data.sh
+```
+
+或手动：
+
+```bash
+sudo mkdir -p /var/data
+sudo cp deploy/blog.env.example /var/data/blog.env
+sudo chmod 600 /var/data/blog.env
+sudo nano /var/data/blog.env   # 填写 ADMIN_PASSWORD、POSTS_DIR、COMMENTS_DIR 等
+
+cd /var/www/blog
+rm -f .env.production
+ln -sf /var/data/blog.env .env.production
+
+pm2 restart blog --update-env
+```
+
+之后改密码只需：`sudo nano /var/data/blog.env` 再 `pm2 restart blog --update-env`。
+
+后台 **账号** 页（`/admin/settings`）也可修改管理员登录密码（写入 `ADMIN_PASSWORD_FILE` 或默认 `/var/data/blog-admin.json`）。请保证运行用户对 `/var/data` 有写权限，例如：
+
+```bash
+sudo chown ubuntu:ubuntu /var/data
+```
+
 ---
 
 ## 三、更新部署
@@ -117,10 +151,12 @@ git pull
 # 执行部署
 npm install
 npm run build
-pm2 restart blog
+pm2 restart blog --update-env
 ```
 
 说明：文章目录与评论目录配置到 `POSTS_DIR=/var/data/blog-posts`、`COMMENTS_DIR=/var/data/blog-comments` 后，更新代码不会覆盖这两个目录的数据。
+
+说明：管理员密码等若已迁到 `/var/data/blog.env`，部署同样**不会**覆盖。
 
 ---
 
@@ -128,7 +164,7 @@ pm2 restart blog
 
 - [ ] 安全组放行 80、443
 - [ ] 域名解析到服务器 IP
-- [ ] 已创建 `.env.production` 并设置 `ADMIN_PASSWORD`
+- [ ] 已设置 `ADMIN_PASSWORD`（推荐 `/var/data/blog.env` + 软链，见上文）
 - [ ] `npm run build` 成功
 - [ ] PM2 已启动 `pm2 status`
 - [ ] Nginx 可访问 `curl -I http://localhost`

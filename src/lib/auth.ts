@@ -1,29 +1,27 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import {
+  getSessionSecretForSigning,
+  hasCredentialFile,
+  verifyPasswordAgainstFile,
+} from "./admin-credentials";
 
 const ADMIN_COOKIE = "admin_session";
 const SESSION_MAX_AGE = 60 * 60 * 24; // 24 hours
 
 function getSecret(): string {
-  const secret =
-    process.env.ADMIN_SECRET ||
-    process.env.ADMIN_PASSWORD ||
-    (process.env.NODE_ENV === "development" ? "dev-secret-change-in-production" : "");
-  if (!secret || secret.length < 8) {
-    throw new Error("请设置 ADMIN_PASSWORD 或 ADMIN_SECRET 环境变量");
-  }
-  return secret;
+  return getSessionSecretForSigning();
 }
 
-function getPassword(): string {
+function getPasswordFromEnv(): string {
   const pwd = process.env.ADMIN_PASSWORD;
   if (!pwd) {
     if (process.env.NODE_ENV === "development") {
-      return "admin123"; // 开发环境默认密码，生产环境必须设置
+      return "admin123";
     }
     throw new Error("请设置 ADMIN_PASSWORD 环境变量");
   }
-  return pwd;
+  return pwd.trim();
 }
 
 export async function setAdminSession() {
@@ -44,9 +42,25 @@ export async function setAdminSession() {
   );
   const token = `${Buffer.from(payload).toString("base64url")}.${Buffer.from(sig).toString("base64url")}`;
   const cookieStore = await cookies();
+  // 生产环境若写死 secure: true，用 http://IP 访问时浏览器不会保存 Cookie，登录会“成功但立刻掉线”。
+  // 仅在「对外是 HTTPS」时启用 Secure（依赖 Nginx 的 X-Forwarded-Proto）。
+  const hdrs = await headers();
+  const proto = (hdrs.get("x-forwarded-proto") || "")
+    .split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  const forwardedHttps = proto === "https";
+  const forceInsecure =
+    process.env.ADMIN_COOKIE_INSECURE === "1" ||
+    process.env.ALLOW_HTTP_ADMIN === "1";
+  const secure =
+    process.env.NODE_ENV === "production" &&
+    !forceInsecure &&
+    forwardedHttps;
+
   cookieStore.set(ADMIN_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     maxAge: SESSION_MAX_AGE,
     path: "/",
@@ -103,5 +117,13 @@ export async function requireAdmin() {
 }
 
 export function checkPassword(password: string): boolean {
-  return password === getPassword();
+  const trimmed = password.trim();
+  if (hasCredentialFile()) {
+    return verifyPasswordAgainstFile(trimmed);
+  }
+  try {
+    return trimmed === getPasswordFromEnv();
+  } catch {
+    return false;
+  }
 }

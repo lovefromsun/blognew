@@ -40,6 +40,12 @@ export default async function AdminDashboardLayout({
               评论
             </Link>
             <Link
+              href="/admin/settings"
+              className="rounded-md px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--accent-dim)] hover:text-[var(--accent)]"
+            >
+              账号
+            </Link>
+            <Link
               href="/"
               className="rounded-md px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--accent-dim)] hover:text-[var(--accent)]"
             >

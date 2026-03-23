@@ -14,8 +14,44 @@ REPO_SSH="git@github.com:lovefromsun/blognew.git"
 APP_DIR="/var/www/blog"
 POSTS_DIR="${POSTS_DIR:-/var/data/blog-posts}"
 COMMENTS_DIR="${COMMENTS_DIR:-/var/data/blog-comments}"
+SECRETS_FILE="${SECRETS_FILE:-/var/data/blog.env}"
 
 log() { echo "[deploy] $*"; }
+
+# 密钥放在 /var/data/blog.env，git pull 不会覆盖（见 ecosystem.config.cjs）
+ensure_secrets() {
+  sudo mkdir -p /var/data
+  cd "$APP_DIR"
+  if [[ -f "$SECRETS_FILE" ]]; then
+    log "使用已有密钥文件 $SECRETS_FILE"
+  elif [[ -n "${ENV_BACKUP:-}" ]] && [[ -f "$ENV_BACKUP" ]]; then
+    log "从备份恢复密钥到 $SECRETS_FILE"
+    sudo cp "$ENV_BACKUP" "$SECRETS_FILE"
+    sudo chmod 600 "$SECRETS_FILE"
+    sudo chown "${SUDO_USER:-$USER}:${SUDO_USER:-$USER}" "$SECRETS_FILE"
+  elif [[ -f deploy/blog.env.example ]]; then
+    sudo cp deploy/blog.env.example "$SECRETS_FILE"
+    sudo chmod 600 "$SECRETS_FILE"
+    sudo chown "${SUDO_USER:-$USER}:${SUDO_USER:-$USER}" "$SECRETS_FILE"
+    log "已创建 $SECRETS_FILE，请执行: sudo nano $SECRETS_FILE"
+    log "必须设置 ADMIN_PASSWORD、COMMENT_CAPTCHA_SECRET 等"
+    if [[ "${SKIP_CONFIRM:-}" != "1" ]]; then
+      read -r -p "已保存? 回车继续 " _
+    fi
+  else
+    log "缺少 deploy/blog.env.example" >&2
+    exit 1
+  fi
+  if ! grep -q '^POSTS_DIR=' "$SECRETS_FILE"; then
+    echo "POSTS_DIR=$POSTS_DIR" >> "$SECRETS_FILE"
+  fi
+  if ! grep -q '^COMMENTS_DIR=' "$SECRETS_FILE"; then
+    echo "COMMENTS_DIR=$COMMENTS_DIR" >> "$SECRETS_FILE"
+  fi
+  rm -f .env.production
+  ln -sf "$SECRETS_FILE" .env.production
+  log "已软链 .env.production -> $SECRETS_FILE"
+}
 
 ensure_packages() {
   if ! command -v git >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
@@ -59,29 +95,7 @@ first_deploy() {
 
   cd "$APP_DIR"
 
-  if [[ -n "${ENV_BACKUP:-}" ]] && [[ -f "$ENV_BACKUP" ]]; then
-    log "恢复 .env.production"
-    cp "$ENV_BACKUP" .env.production
-    chmod 600 .env.production
-  elif [[ ! -f .env.production ]]; then
-    if [[ -f .env.example ]]; then
-      cp .env.example .env.production
-      chmod 600 .env.production
-    fi
-    log "请立即编辑: nano $APP_DIR/.env.production"
-    log "必须设置: ADMIN_PASSWORD；建议设置: COMMENT_CAPTCHA_SECRET（openssl rand -hex 32）"
-    if [[ "${SKIP_CONFIRM:-}" != "1" ]]; then
-      read -r -p "已编辑好 .env.production 并保存? 按回车继续 " _
-    fi
-  fi
-
-  # 确保外置目录写入 .env
-  if ! grep -q '^POSTS_DIR=' .env.production; then
-    echo "POSTS_DIR=$POSTS_DIR" >> .env.production
-  fi
-  if ! grep -q '^COMMENTS_DIR=' .env.production; then
-    echo "COMMENTS_DIR=$COMMENTS_DIR" >> .env.production
-  fi
+  ensure_secrets
 
   if [[ -z "$(sudo ls -A "$POSTS_DIR" 2>/dev/null || true)" ]] && [[ -d content/posts ]]; then
     log "首次：从仓库 content/posts 复制到 $POSTS_DIR"

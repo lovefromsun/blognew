@@ -41,6 +41,10 @@ npm start
 5. 访问 http://localhost:3000/admin 登录（开发环境默认密码 `admin123`）
 6. 在后台可添加、编辑、删除文章
 
+**生产环境（服务器）**：不要把唯一一份密码只写在项目里的 `.env.production` 再反复被覆盖。请使用 **`/var/data/blog.env`**（详见 `DEPLOY.md` 与 `deploy/migrate-secrets-to-var-data.sh`），部署 `git pull` 后密码不会丢。
+
+**修改管理员密码**：登录后台 → **账号**（`/admin/settings`），可自助改密；密码哈希写入服务器文件（默认 `/var/data/blog-admin.json`），不进 Git。首次改密前仍使用环境变量里的 `ADMIN_PASSWORD` 校验。
+
 ## 添加新文章
 
 **方式一：后台**  
