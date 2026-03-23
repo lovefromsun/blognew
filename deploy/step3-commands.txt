@@ -1,0 +1,40 @@
+# 第三步：在服务器上执行
+# 1. 先 SSH 登录: ssh root@150.158.75.100
+# 2. 复制下面整段命令粘贴到终端执行
+
+# 安装环境（首次需要）
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+npm install -g pm2
+apt-get install -y nginx unzip
+
+# 解压并进入项目
+mkdir -p /var/www
+cd /var/www
+unzip -o /tmp/blog-deploy.zip -d blog
+cd blog
+
+# 准备文章数据目录（放在项目外，避免部署覆盖）
+mkdir -p /var/data/blog-posts
+mkdir -p /var/data/blog-comments
+
+# 首次迁移：如果外置目录为空，复制当前文章过去
+if [ -z "$(ls -A /var/data/blog-posts 2>/dev/null)" ]; then
+  cp -a content/posts/. /var/data/blog-posts/
+fi
+
+# 设置管理员密码和文章目录（请把 你的强密码 改成实际密码）
+cat > .env.production <<'EOF'
+ADMIN_PASSWORD=你的强密码
+POSTS_DIR=/var/data/blog-posts
+COMMENTS_DIR=/var/data/blog-comments
+COMMENT_CAPTCHA_SECRET=请替换为随机复杂字符串
+COMMENT_SENSITIVE_WORDS=赌博,色情,诈骗,辱骂,反动
+EOF
+
+# 构建并启动
+npm install
+npm run build
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
