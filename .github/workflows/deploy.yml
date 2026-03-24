@@ -1,0 +1,40 @@
+# 推送到 main 后 SSH 到服务器执行：git pull → npm install → build → pm2 restart
+#
+# 在仓库 Settings → Secrets and variables → Actions 中配置：
+#   DEPLOY_HOST   服务器 IP 或域名（如 150.158.75.100）
+#   DEPLOY_USER   SSH 登录用户（如 ubuntu）
+#   DEPLOY_SSH_KEY  仅用于部署的私钥全文（PEM / OpenSSH 格式）
+# 服务器上需：该用户能 git pull（仓库已配置 SSH/HTTPS）、有 node/npm/pm2、项目路径为 /var/www/blog
+# 若路径或 SSH 端口不是 /var/www/blog、22，请改本文件下方 cd / port（port 可写在 with: 里）。
+
+name: Deploy to server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd /var/www/blog
+            git pull origin main
+            npm install
+            npm run build
+            pm2 restart blog --update-env
+            echo "Deploy OK"

@@ -160,6 +160,26 @@ pm2 restart blog --update-env
 
 说明：管理员密码等若已迁到 `/var/data/blog.env`，部署同样**不会**覆盖。
 
+### GitHub Actions 自动部署（推送到 `main`）
+
+仓库已包含 `.github/workflows/deploy.yml`：**每次 push 到 `main`** 会通过 SSH 在服务器执行 `git pull`、`npm install`、`npm run build`、`pm2 restart blog`。
+
+1. 在 GitHub 打开仓库 **Settings → Secrets and variables → Actions → New repository secret**，添加：
+
+   | Name | 说明 |
+   |------|------|
+   | `DEPLOY_HOST` | 服务器 IP 或域名 |
+   | `DEPLOY_USER` | SSH 用户（如 `ubuntu`） |
+   | `DEPLOY_SSH_KEY` | **私钥**全文（与服务器 `~/.ssh/authorized_keys` 中公钥配对） |
+
+2. 在**服务器**上为该用户配置好：能 `ssh` 登录、能 `cd /var/www/blog && git pull`（仓库已 clone 且远程可用）、`pm2` 与 Node 在 PATH 中。
+
+3. 若项目目录或 SSH 端口不是 `/var/www/blog`、`22`，请编辑 `.github/workflows/deploy.yml` 中的 `cd` 或给 `appleboy/ssh-action` 增加 `port:`。
+
+4. 也可在 Actions 里 **Run workflow**（`workflow_dispatch`）手动触发。
+
+首次配置 Secret 前推送会失败，属正常；配好 Secret 后重跑失败的工作流或再 push 一次即可。
+
 ---
 
 ## 四、检查清单
