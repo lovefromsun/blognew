@@ -23,6 +23,10 @@
 # misc
 .data/
 .DS_Store
+
+# 后台上传的图片（保留空目录用 .gitkeep）
+public/uploads/*
+!public/uploads/.gitkeep
 *.pem
 *.zip
 

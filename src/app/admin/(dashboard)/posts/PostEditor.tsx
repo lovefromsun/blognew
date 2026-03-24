@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Post } from "@/lib/types";
@@ -22,6 +23,54 @@ export default function PostEditor({ initial }: Props) {
   const [content, setContent] = useState(initial?.content ?? "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function insertAtCursor(insert: string) {
+    const el = textareaRef.current;
+    if (!el) {
+      setContent((c) => c + insert);
+      return;
+    }
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    setContent((prev) => prev.slice(0, start) + insert + prev.slice(end));
+    requestAnimationFrame(() => {
+      const pos = start + insert.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  }
+
+  async function handleImageFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; url?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error || "上传失败");
+        return;
+      }
+      const base = file.name.replace(/\.[^.]+$/, "") || "图片";
+      const md = `\n\n![${base}](${data.url})\n\n`;
+      insertAtCursor(md);
+    } catch {
+      setError("上传失败");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -122,10 +171,34 @@ export default function PostEditor({ initial }: Props) {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-[var(--foreground)]">
-          正文（Markdown）
-        </label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="block text-sm font-medium text-[var(--foreground)]">
+            正文（Markdown）
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={handleImageFile}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="btn-ghost text-xs"
+            >
+              {uploading ? "上传中…" : "插入图片"}
+            </button>
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          支持 JPEG / PNG / GIF / WebP，单张不超过 5MB；上传后会插入{" "}
+          <code className="font-mono text-[11px]">![说明](/uploads/…)</code>
+        </p>
         <textarea
+          ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={16}

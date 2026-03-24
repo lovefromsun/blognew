@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { getPostBySlug, getAllPosts } from "@/lib/posts";
@@ -14,6 +15,19 @@ export const revalidate = 0;
 interface Props {
   params: Promise<{ slug: string }>;
 }
+
+const markdownComponents: Components = {
+  img: ({ src, alt }) => (
+    // eslint-disable-next-line @next/next/no-img-element -- 用户 Markdown 外链与 /uploads 静态资源
+    <img
+      src={src}
+      alt={alt ?? ""}
+      className="my-4 max-h-[70vh] w-auto max-w-full rounded-lg border border-[var(--border)] object-contain"
+      loading="lazy"
+      decoding="async"
+    />
+  ),
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -86,7 +100,9 @@ export default async function BlogPost({ params }: Props) {
             )}
           </div>
           <div className="prose mt-10 max-w-none border-t border-[var(--border)] pt-10">
-            <ReactMarkdown>{post.content}</ReactMarkdown>
+            <ReactMarkdown components={markdownComponents}>
+              {post.content}
+            </ReactMarkdown>
           </div>
         </article>
         <CommentsSection slug={slug} />
