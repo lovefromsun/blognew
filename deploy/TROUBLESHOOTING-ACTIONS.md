@@ -15,6 +15,8 @@
 
 ## 第 1 步：Secrets 是否齐全、名字是否完全一致
 
+**现象**：`Error: missing server host` → **没有配置 `DEPLOY_HOST`**，或 Secret **名称写错**（例如写成了 `HOST`、`deploy_host`），导致 `host` 为空。
+
 **现象**：日志里出现 `empty host`、`missing key`、`invalid` 等。
 
 **原因**：仓库 **Settings → Secrets and variables → Actions** 里缺少变量，或名称与 workflow 不一致（区分大小写）。
