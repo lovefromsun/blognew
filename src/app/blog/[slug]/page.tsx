@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Components } from "react-markdown";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { getPostBySlug, getAllPosts } from "@/lib/posts";
-import { absoluteUrl, estimateReadMinutes } from "@/lib/site";
+import {
+  absoluteUrl,
+  estimateReadMinutes,
+  normalizeMarkdownAssetUrl,
+} from "@/lib/site";
 import CommentsSection from "./CommentsSection";
 
 export const dynamicParams = true;
@@ -20,7 +24,7 @@ const markdownComponents: Components = {
   img: ({ src, alt }) => (
     // eslint-disable-next-line @next/next/no-img-element -- 用户 Markdown 外链与 /uploads 静态资源
     <img
-      src={src}
+      src={src ? normalizeMarkdownAssetUrl(String(src)) : undefined}
       alt={alt ?? ""}
       className="my-4 max-h-[70vh] w-auto max-w-full rounded-lg border border-[var(--border)] object-contain"
       loading="lazy"
@@ -100,7 +104,14 @@ export default async function BlogPost({ params }: Props) {
             )}
           </div>
           <div className="prose mt-10 max-w-none border-t border-[var(--border)] pt-10">
-            <ReactMarkdown components={markdownComponents}>
+            <ReactMarkdown
+              components={markdownComponents}
+              urlTransform={(url) => {
+                const safe = defaultUrlTransform(url);
+                if (safe === "") return safe;
+                return normalizeMarkdownAssetUrl(safe);
+              }}
+            >
               {post.content}
             </ReactMarkdown>
           </div>

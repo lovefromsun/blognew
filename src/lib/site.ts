@@ -17,6 +17,20 @@ export function absoluteUrl(path: string): string {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * Markdown 里的相对路径（如 uploads/…）在 /blog/[slug] 下会被浏览器当成 /blog/uploads/…。
+ * 对无协议的站内路径补全为根路径。
+ */
+export function normalizeMarkdownAssetUrl(src: string): string {
+  const s = src.trim();
+  if (s === "") return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith("//")) return s;
+  if (s.startsWith("/")) return s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return s; // mailto:, tel:, data:, …
+  const noDot = s.replace(/^\.\//, "");
+  return `/${noDot.replace(/^\//, "")}`;
+}
+
 /** 粗略阅读分钟（中英混排按字符估算） */
 export function estimateReadMinutes(markdown: string): number {
   const text = markdown.replace(/\s+/g, " ").trim();
