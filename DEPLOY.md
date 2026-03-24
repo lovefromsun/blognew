@@ -174,9 +174,11 @@ pm2 restart blog --update-env
 
 2. 在**服务器**上为该用户配置好：能 `ssh` 登录、能 `cd /var/www/blog && git pull`（仓库已 clone 且远程可用）、`pm2` 与 Node 在 PATH 中。
 
-3. 若项目目录或 SSH 端口不是 `/var/www/blog`、`22`，请编辑 `.github/workflows/deploy.yml` 中的 `cd` 或给 `appleboy/ssh-action` 增加 `port:`。
+3. 若项目目录不是 `/var/www/blog`，请编辑 `.github/workflows/deploy.yml` 里 `cd` 路径。SSH **非 22 端口** 可在 `host` 写成 `IP:端口`（如 `1.2.3.4:2222`），见 [appleboy/ssh-action](https://github.com/appleboy/ssh-action)。
 
-4. 也可在 Actions 里 **Run workflow**（`workflow_dispatch`）手动触发。
+4. 也可在 Actions 里 **Run workflow**（`workflow_dispatch`）手动触发；另可选用 **SSH smoke test** 工作流，只验证能否登录（不部署）。
+
+5. **失败时按步骤排查**：见 [`deploy/TROUBLESHOOTING-ACTIONS.md`](./deploy/TROUBLESHOOTING-ACTIONS.md)。可在仓库 **Variables** 中设置 `DEPLOY_DEBUG=true` 打开 SSH 调试日志（排查完请关掉）。
 
 首次配置 Secret 前推送会失败，属正常；配好 Secret 后重跑失败的工作流或再 push 一次即可。
 

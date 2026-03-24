@@ -1,0 +1,25 @@
+# 仅验证：GitHub Actions 能否 SSH 登录服务器（不执行部署）
+# 用法：Actions → 选本 workflow → Run workflow
+
+name: SSH smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH whoami
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 120s
+          debug: ${{ vars.DEPLOY_DEBUG == 'true' }}
+          script: |
+            set -e
+            whoami
+            hostname
+            echo "SSH OK"
