@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { getPostBySlug, getAllPosts } from "@/lib/posts";
+import { absoluteUrl, estimateReadMinutes } from "@/lib/site";
 import CommentsSection from "./CommentsSection";
 
 export const dynamicParams = true;
@@ -11,6 +13,38 @@ export const revalidate = 0;
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await getPostBySlug(slug);
+  if (!post) return { title: "未找到" };
+
+  const description =
+    post.excerpt?.trim() ||
+    post.content.replace(/\s+/g, " ").slice(0, 160).trim();
+  const url = absoluteUrl(`/blog/${slug}`);
+  const published =
+    post.date && !Number.isNaN(new Date(post.date).getTime())
+      ? new Date(post.date).toISOString()
+      : undefined;
+
+  return {
+    title: post.title,
+    description,
+    openGraph: {
+      title: post.title,
+      description,
+      url,
+      type: "article",
+      publishedTime: published,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
+    },
+  };
 }
 
 export async function generateStaticParams() {
@@ -23,6 +57,8 @@ export default async function BlogPost({ params }: Props) {
   const post = await getPostBySlug(slug);
 
   if (!post) notFound();
+
+  const readMin = estimateReadMinutes(post.content);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -40,6 +76,8 @@ export default async function BlogPost({ params }: Props) {
           </h1>
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-[var(--muted)]">
             <time>{post.date}</time>
+            <span className="text-[var(--border)]">·</span>
+            <span>约 {readMin} 分钟读完</span>
             {post.author && (
               <>
                 <span className="text-[var(--border)]">·</span>

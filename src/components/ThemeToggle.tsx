@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { getAutoThemeFromLocalTime } from "@/lib/theme-schedule";
 
 const STORAGE_KEY = "theme";
 
@@ -26,15 +27,17 @@ function subscribe(onStoreChange: () => void) {
   return () => window.removeEventListener("themechange", handler);
 }
 
-function applyTheme(mode: ThemeMode) {
+function applyTheme(mode: ThemeMode, persist: boolean) {
   const root = document.documentElement;
   root.classList.remove("light", "dark");
   root.classList.add(mode);
   root.dataset.theme = mode;
-  try {
-    localStorage.setItem(STORAGE_KEY, mode);
-  } catch {
-    /* ignore */
+  if (persist) {
+    try {
+      localStorage.setItem(STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
   }
   window.dispatchEvent(new Event("themechange"));
 }
@@ -44,8 +47,28 @@ export default function ThemeToggle() {
 
   const toggle = useCallback(() => {
     const next: ThemeMode = mode === "dark" ? "light" : "dark";
-    applyTheme(next);
+    applyTheme(next, true);
   }, [mode]);
+
+  // 未手动固定时：跨时段（如从夜间到白天）自动跟随本机时间
+  useEffect(() => {
+    function tick() {
+      try {
+        if (localStorage.getItem(STORAGE_KEY)) return;
+        const auto = getAutoThemeFromLocalTime();
+        const cur = document.documentElement.classList.contains("light")
+          ? "light"
+          : "dark";
+        if (cur !== auto) {
+          applyTheme(auto, false);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   return (
     <button
@@ -53,7 +76,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition hover:border-[var(--accent)]/50 hover:text-[var(--accent)]"
       aria-label={mode === "dark" ? "切换到白天模式" : "切换到夜间模式"}
-      title={mode === "dark" ? "白天" : "夜间"}
+      title={mode === "dark" ? "切换为浅色（会记住选择）" : "切换为深色（会记住选择）"}
     >
       {mode === "dark" ? <IconSun /> : <IconMoon />}
     </button>

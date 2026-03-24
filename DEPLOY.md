@@ -47,6 +47,8 @@ POSTS_DIR=/var/data/blog-posts
 COMMENTS_DIR=/var/data/blog-comments
 COMMENT_CAPTCHA_SECRET=请替换为随机复杂字符串
 COMMENT_SENSITIVE_WORDS=赌博,色情,诈骗,辱骂,反动
+# 站点域名（RSS / sitemap / 分享卡片链接）
+SITE_URL=https://你的域名
 EOF
 
 # 首次迁移：如果外置目录为空，复制当前文章过去
